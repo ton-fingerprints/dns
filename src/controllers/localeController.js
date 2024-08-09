@@ -329,7 +329,7 @@ const ABOUT_LOCALES = {
     dark_mode: "Темная тема",
     what_is_ton_domains: "Что такое домены .fingerprints.ton?",
     what_is_ton_domains_p1:
-      "TON DNS — сервис, который позволяет задать криптокошелькам, смарт-контрактам или сайтам короткие читаемые имена. С TON DNS доступ к децентрализованным сервисам аналогичен доступу к веб-сайтам в интернете.",
+      "TON Fingerprints DNS — сервис, который позволяет задать криптокошелькам, смарт-контрактам или сайтам короткие читаемые имена. С TON Fingerprints DNS доступ к децентрализованным сервисам аналогичен доступу к веб-сайтам в интернете.",
     your_nickname_on_a_decentralized_network:
       "Ваш никнейм в децентрализованной сети",
     your_nickname_on_a_decentralized_network_p1:
@@ -341,7 +341,7 @@ const ABOUT_LOCALES = {
     your_nickname_on_a_decentralized_network_video2:
       "Вводите домен в поисковой строке обозревателя сети.",
     your_nickname_on_a_decentralized_network_p3:
-      'Сервисы <a href="https://tonkeeper.com/" target="_blank">Tonkeeper</a>, <a href="https://wallet.ton.org/" target="_blank">TON Web Wallet</a> и <a href="https://tonscan.org/" target="_blank">Tonscan</a> уже сделали поддержку TON DNS. Большинство других приложений в TON также планирует реализовать поддержку, так что домен можно будет использовать повсеместно.',
+      'Сервисы <a href="https://tonkeeper.com/" target="_blank">Tonkeeper</a>, <a href="https://wallet.ton.org/" target="_blank">TON Web Wallet</a> и <a href="https://tonscan.org/" target="_blank">Tonscan</a> уже сделали поддержку TON Fingerprints DNS. Большинство других приложений в TON также планирует реализовать поддержку, так что домен можно будет использовать повсеместно.',
     your_nickname_on_a_decentralized_network_p4:
       "Домены могут регистрировать не только пользователи, но и разработчики для смарт-контрактов своих децентрализованных сервисов. Теперь у смарт-контрактов тоже будут свои юзернеймы, как у ботов в мессенджерах.",
     a_simple_and_convenient_blockchain: "Удобный и простой блокчейн",
@@ -353,7 +353,7 @@ const ABOUT_LOCALES = {
       "Вы могли заметить, что в TON-приложениях почти нет технической информации — мы не забиваем голову пользователей номерами блоков и хешами транзакций.",
     footer_support: "Помощь",
     a_simple_and_convenient_blockchain_p4:
-      "Единственная техническая деталь, которую сразу видел пользователь — это адрес кошелька, и хоть он не сильно сложнее номера телефона или адреса банковской карты, мы рады, что с запуском TON DNS это тоже удалось упростить.",
+      "Единственная техническая деталь, которую сразу видел пользователь — это адрес кошелька, и хоть он не сильно сложнее номера телефона или адреса банковской карты, мы рады, что с запуском TON Fingerprints DNS это тоже удалось упростить.",
     but_we_are_taking_a_step_even_closer_toward:
       "Еще один шаг к децентрализованному интернету",
     but_we_are_taking_a_step_even_closer_toward_p1:
@@ -363,12 +363,12 @@ const ABOUT_LOCALES = {
     but_we_are_taking_a_step_even_closer_toward_p3:
       "Помимо этого появятся инструменты для взаимодействия смарт-контрактов блокчейна с интернет-ресурсами и наоборот.",
     but_we_are_taking_a_step_even_closer_toward_p4:
-      "К домену TON DNS можно привязать не только адрес кошелька, но также и подключить TON-сайт.",
+      "К домену TON Fingerprints DNS можно привязать не только адрес кошелька, но также и подключить TON-сайт.",
     but_we_are_taking_a_step_even_closer_toward_p5:
-      "Мы видим в TON DNS хорошую альтернативу централизованным доменным регистраторам, которые зачастую могут заблокировать домен вашего сайта не по самым объективным причинам или же просто по ошибке.",
+      "Мы видим в TON Fingerprints DNS хорошую альтернативу централизованным доменным регистраторам, которые зачастую могут заблокировать домен вашего сайта не по самым объективным причинам или же просто по ошибке.",
     ton_domain_names_are_nft: "Домены .fingerprints.ton — это NFT",
     ton_domain_names_are_nft_p1:
-      'Доменная зона TON DNS называется ".fingerprints.ton". Пользователи регистрируют свои домены в этой зоне: например, "alice.fingerprints.ton".',
+      'Доменная зона TON Fingerprints DNS называется ".fingerprints.ton". Пользователи регистрируют свои домены в этой зоне: например, "alice.fingerprints.ton".',
     ton_domain_names_are_nft_p2:
       "Домены в зоне TON — это NFT. Это значит, что вы сможете хранить, дарить или продавать свои домены так же, как вы это делаете с обычными NFT.",
     ton_domain_names_are_nft_p3:
@@ -385,7 +385,7 @@ const ABOUT_LOCALES = {
       "Раз в год владельцу домена требуется отправить 0.015 TON на смарт-контракт домена и продлить таким образом домен еще на год. Если домен не продлить, он перейдет в режим аукциона. Это сделано для того, чтобы домены не были потеряны навечно, если их владельцы каким-либо образом утратили к ним доступ.",
     decentralization: "Децентрализация",
     decentralization_p1:
-      'TON DNS — это децентрализованная доменная система. Не существует "администратора", который сможет заблокировать ваш домен.',
+      'TON Fingerprints DNS — это децентрализованная доменная система. Не существует "администратора", который сможет заблокировать ваш домен.',
     decentralization_p2:
       "Для исключительных случаев предусмотрена возможность смены владельца или удаление домена посредством общесетевого голосования. Заметим, что большинством в сети можно поменять не только DNS, но и любую конфигурацию блокчейна, но т.к. в сети несколько сотен независимых валидаторов, то для таких изменений нужен исключительно веский повод.",
     auction_rules: "Условия аукциона",
@@ -410,7 +410,7 @@ const ABOUT_LOCALES = {
     claim_your_ton_domain_h4:
       "Установка адреса вашего кошелька в домен с помощью расширения TON Wallet",
     claim_your_ton_domain_p1:
-      'Зайдите на <a target="_blank" href="https://dns.fingerprints.space/">TON DNS</a> и введите ваш домен. Если аукцион закончился, то вы должны увидеть следующее:',
+      'Зайдите на <a target="_blank" href="https://dns.fingerprints.space/">TON Fingerprints DNS</a> и введите ваш домен. Если аукцион закончился, то вы должны увидеть следующее:',
     claim_your_ton_domain_p2:
       "Проверьте, что адрес владельца совпадает с адресом кошелька, с помощью которого вы делали ставки. Домен ваш, поздравляем!",
     claim_your_ton_domain_p3:
@@ -418,7 +418,7 @@ const ABOUT_LOCALES = {
     claim_your_ton_domain_p4:
       "Проще всего проставить в него адрес вашего кошелька. После этого вы сможете использовать короткое имя .fingerprints.ton вместо адреса кошелька во всех приложениях, которые поддерживают эту функцию.",
     claim_your_ton_domain_p5:
-      'В <a target="_blank" href="https://tonkeeper.com/">Tonkeeper</a> у пользователей есть возможность хранить домены во вкладке "NFT". Также у каждого TON DNS появится кнопка "Link" ("Привязать", т.е проставить адрес кошелька в этот домен).',
+      'В <a target="_blank" href="https://tonkeeper.com/">Tonkeeper</a> у пользователей есть возможность хранить домены во вкладке "NFT". Также у каждого TON Fingerprints DNS появится кнопка "Link" ("Привязать", т.е проставить адрес кошелька в этот домен).',
     claim_your_ton_domain_p6:
       "1. Откройте браузер Google Chrome на компьютере.",
     claim_your_ton_domain_p7:
@@ -450,7 +450,7 @@ const ABOUT_LOCALES = {
     dark_mode: "Dark mode",
     what_is_ton_domains: "What are .fingerprints.ton domains?",
     what_is_ton_domains_p1:
-      "TON DNS is a service that allows users to assign a human-readable name to crypto wallets, smart contracts, and websites. With TON DNS, access to decentralized services is analogous to access to websites on the internet.",
+      "TON Fingerprints DNS is a service that allows users to assign a human-readable name to crypto wallets, smart contracts, and websites. With TON Fingerprints DNS, access to decentralized services is analogous to access to websites on the internet.",
     your_nickname_on_a_decentralized_network:
       "Your nickname on a decentralized network",
     your_nickname_on_a_decentralized_network_p1:
@@ -462,7 +462,7 @@ const ABOUT_LOCALES = {
     your_nickname_on_a_decentralized_network_video2:
       "Enter the domain name in the search field of a TON explorer.",
     your_nickname_on_a_decentralized_network_p3:
-      'The <a href="https://tonkeeper.com/" target="_blank">Tonkeeper</a>, <a href="https://wallet.ton.org/" target="_blank">TON Web Wallet</a>, and <a href="https://tonscan.org/" target="_blank">Tonscan</a> services have already integrated support for TON DNS. Most other TON-based apps also plan to implement support so that nicknames (domain names) can be used across the entirety of the TON ecosystem.',
+      'The <a href="https://tonkeeper.com/" target="_blank">Tonkeeper</a>, <a href="https://wallet.ton.org/" target="_blank">TON Web Wallet</a>, and <a href="https://tonscan.org/" target="_blank">Tonscan</a> services have already integrated support for TON Fingerprints DNS. Most other TON-based apps also plan to implement support so that nicknames (domain names) can be used across the entirety of the TON ecosystem.',
     your_nickname_on_a_decentralized_network_p4:
       "In addition to users registering domain names, developers can also register domain names for the smart contracts of their decentralized services. Now, smart contracts will also have their own nicknames, just like bots in messenger apps.",
     a_simple_and_convenient_blockchain: "A simple and convenient blockchain",
@@ -473,7 +473,7 @@ const ABOUT_LOCALES = {
     a_simple_and_convenient_blockchain_p3:
       "We’ve emphasized avoiding technical jargon and information in TON-based apps — we won’t inundate you with block numbers and transaction hashes.",
     a_simple_and_convenient_blockchain_p4:
-      "The only technical detail immediately visible to the user is the wallet’s address. And although it’s simpler than a telephone or bank card number, we’re excited to know that the launch of TON DNS will simplify this process even more.",
+      "The only technical detail immediately visible to the user is the wallet’s address. And although it’s simpler than a telephone or bank card number, we’re excited to know that the launch of TON Fingerprints DNS will simplify this process even more.",
     but_we_are_taking_a_step_even_closer_toward:
       "But we’re taking a step even closer toward a fully decentralized internet",
     but_we_are_taking_a_step_even_closer_toward_p1:
@@ -483,16 +483,16 @@ const ABOUT_LOCALES = {
     but_we_are_taking_a_step_even_closer_toward_p3:
       "Besides these releases, there will also be tools to facilitate the interaction between blockchain smart contracts and internet resources and vice versa.",
     but_we_are_taking_a_step_even_closer_toward_p4:
-      "Although you can assign a wallet address to a TON DNS, you’ll also be able to assign TON site.",
+      "Although you can assign a wallet address to a TON Fingerprints DNS, you’ll also be able to assign TON site.",
     but_we_are_taking_a_step_even_closer_toward_p5:
-      "What we see in TON DNS is a welcome alternative to centralized domain registries, which can often block your site’s domain either for arbitrary reasons or erroneously.",
+      "What we see in TON Fingerprints DNS is a welcome alternative to centralized domain registries, which can often block your site’s domain either for arbitrary reasons or erroneously.",
     ton_domain_names_are_nft: ".fingerprints.ton domain names are NFTs",
     ton_domain_names_are_nft_p1:
-      "The domain zone for TON DNS is called “.fingerprints.ton”. Users will register their domain name like this: “alice.fingerprints.ton”, “.fingerprints.ton” domain names are NFTs.",
+      "The domain zone for TON Fingerprints DNS is called “.fingerprints.ton”. Users will register their domain name like this: “alice.fingerprints.ton”, “.fingerprints.ton” domain names are NFTs.",
     ton_domain_names_are_nft_p2:
       "That means that once you obtain a domain name, you’ll be able to store, gift, or sell it — the same way you’d handle regular NFTs.",
     ton_domain_names_are_nft_p3:
-      'Your domain will be stored in your wallet, and you’ll be able to put it up for sale on NFT marketplaces, such as <a target="_blank" href="https://getgems.io/">Getgems</a> or <a target="_blank" href="https://beta.disintar.io/">Disintar</a>, which already support TON DNS.',
+      'Your domain will be stored in your wallet, and you’ll be able to put it up for sale on NFT marketplaces, such as <a target="_blank" href="https://getgems.io/">Getgems</a> or <a target="_blank" href="https://beta.disintar.io/">Disintar</a>, which already support TON Fingerprints DNS.',
     ton_domain_names_are_nft_image1:
       "Domain names for sale on NFT marketplace Getgems.",
     rules_for_ton_domain_names: "Rules for .fingerprints.ton domain names",
@@ -506,7 +506,7 @@ const ABOUT_LOCALES = {
       "Once per year, the domain’s owner will have to send 0.015 TON to the domain’s smart contract to extend the domain for a year. If the owner fails to extend their domain, it will go up for auction. Such is to prevent losing a domain forever in the event its owner loses access.",
     decentralization: "Decentralization",
     decentralization_p1:
-      "TON DNS is a decentralized domain name system. There is no “administrator” who can block your domain name.",
+      "TON Fingerprints DNS is a decentralized domain name system. There is no “administrator” who can block your domain name.",
     decentralization_p2:
       "For exceptional cases, it is possible to change the owner or delete the domain by means of network-wide voting. Note that most of the network can change not only DNS, but also any configuration of the blockchain, but since there are several hundred independent validators on the network, then such changes need an exceptionally good reason.",
     auction_rules: "Auction rules",
@@ -539,7 +539,7 @@ const ABOUT_LOCALES = {
     claim_your_ton_domain_p4:
       "You need to assign your wallet address to your domain name. Once you’ve completed this, you’ll be able to use your short .fingerprintston domain name instead of your long wallet address in all applications that support this function.",
     claim_your_ton_domain_p5:
-      '<a target="_blank" href="https://tonkeeper.com/">Tonkeeper</a> allows users to store domain names in the “NFT” tab. Also, every TON DNS has a “Link” button — i.e., an “Assign” button to connect a wallet address to a domain.',
+      '<a target="_blank" href="https://tonkeeper.com/">Tonkeeper</a> allows users to store domain names in the “NFT” tab. Also, every TON Fingerprints DNS has a “Link” button — i.e., an “Assign” button to connect a wallet address to a domain.',
     claim_your_ton_domain_p6:
       "1. Open the Google Chrome web browser on your computer.",
     claim_your_ton_domain_p7:

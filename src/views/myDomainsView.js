@@ -1,5 +1,5 @@
 class MyDomainsView {
-  constructor() { }
+  constructor() {}
 
   renderLoadingView() {
     showMyDomainsContainer();
@@ -17,7 +17,9 @@ class MyDomainsView {
   }
 
   resetTable() {
-    document.querySelectorAll('.my-domains-table-row').forEach(node => node.remove());
+    document
+      .querySelectorAll(".my-domains-table-row")
+      .forEach((node) => node.remove());
   }
 
   rednder(moreDomainsToDisplay, isLoadMore) {
@@ -34,112 +36,116 @@ class MyDomainsView {
   }
 }
 
-
 // --- UTILITY REDNER METHODS ---
 const assembleRowData = (item) => {
   const domainName = item.name;
   const salePricePromise = getSalePrice(domainName); // new Promise((r) => setTimeout(() => r(1234567), 5000))
   const expiryDate = new Date(item.expiring_at * 1000);
-  
+
   return { domainName, salePricePromise, expiryDate };
-}
+};
 
 const buildDomainCell = (cell, domain) => {
-  cell.classList.add('my-domains-table-cell-first');
+  cell.classList.add("my-domains-table-cell-first");
 
-  const domainCellDiv = document.createElement('div');
-  domainCellDiv.classList.add('my-domains-table-domain-cell');
+  const domainCellDiv = document.createElement("div");
+  domainCellDiv.classList.add("my-domains-table-domain-cell");
   domainCellDiv.innerText = domain;
   cell.appendChild(domainCellDiv);
-}
+};
 
 const loadingPricePlaceholder = isMobile() ? 123 : 12345;
 const buildSalePriceCell = (cell, salePricePromise) => {
-  cell.classList.add('my-domains-table-cell');
+  cell.classList.add("my-domains-table-cell");
 
   // --- first row in the cell
-  const priceCellDiv = document.createElement('div');
-  priceCellDiv.classList.add('my-domains-cell-price-container');
+  const priceCellDiv = document.createElement("div");
+  priceCellDiv.classList.add("my-domains-cell-price-container");
 
-  const spanPriceInTON = document.createElement('span');
-  spanPriceInTON.classList.add('my-domains-cell-price-loading');
-  spanPriceInTON.innerHTML = '&nbsp;' + formatNumber(loadingPricePlaceholder, 2);
+  const spanPriceInTON = document.createElement("span");
+  spanPriceInTON.classList.add("my-domains-cell-price-loading");
+  spanPriceInTON.innerHTML =
+    "&nbsp;" + formatNumber(loadingPricePlaceholder, 2);
   priceCellDiv.appendChild(spanPriceInTON);
 
-  const tonLogoSpan = document.createElement('span');
-  tonLogoSpan.classList.add('my-domains-cell-price-ton-logo');
+  const tonLogoSpan = document.createElement("span");
+  tonLogoSpan.classList.add("my-domains-cell-price-ton-logo");
   priceCellDiv.insertBefore(tonLogoSpan, spanPriceInTON);
   // ---
 
   cell.appendChild(priceCellDiv);
 
   salePricePromise.then((priceInTON) => {
-    spanPriceInTON.classList.remove('my-domains-cell-price-loading');
-    spanPriceInTON.classList.add('my-domains-cell-price');
-    spanPriceInTON.innerHTML = '&nbsp;' + formatNumber(priceInTON, 2);
+    spanPriceInTON.classList.remove("my-domains-cell-price-loading");
+    spanPriceInTON.classList.add("my-domains-cell-price");
+    spanPriceInTON.innerHTML = "&nbsp;" + formatNumber(priceInTON, 2);
   });
-}
+};
 
 const buildExpiredDate = (node) => {
-  const expiredDateSpan = document.createElement('span');
-  expiredDateSpan.classList.add('my-domains-cell-expiried-date');
+  const expiredDateSpan = document.createElement("span");
+  expiredDateSpan.classList.add("my-domains-cell-expiried-date");
   expiredDateSpan.innerHTML = store.localeDict.my_domains_domain_expired;
   node.appendChild(expiredDateSpan);
-}
+};
 
 const buildDesktopExpiryDateTitleSpan = (node, { days, hours, minutes }) => {
-  const desktopExpiryDateSpan = document.createElement('span');
-  desktopExpiryDateSpan.classList.add('my-domains-cell-expiry-title-desktop');
+  const desktopExpiryDateSpan = document.createElement("span");
+  desktopExpiryDateSpan.classList.add("my-domains-cell-expiry-title-desktop");
 
-  let dayStr = '';
+  let dayStr = "";
   if (days === 1) {
     dayStr = `1 ${store.localeDict.day} `;
   }
-  if(days > 1){
+  if (days > 1) {
     dayStr = `${days} ${store.localeDict.days} `;
   }
 
   desktopExpiryDateSpan.innerHTML = `${dayStr} ${hours} ${store.localeDict.hours} ${minutes} ${store.localeDict.min}`;
   node.appendChild(desktopExpiryDateSpan);
-}
+};
 
 const buildMobileExpiryDateTitleSpan = (node, { days }) => {
-  const mobileExpiryDateSpan = document.createElement('span');
-  mobileExpiryDateSpan.classList.add('my-domains-cell-expiry-title-mobile');
+  const mobileExpiryDateSpan = document.createElement("span");
+  mobileExpiryDateSpan.classList.add("my-domains-cell-expiry-title-mobile");
 
-  let dayStr = '';
+  let dayStr = "";
   if (days === 1) {
     dayStr = `1 ${store.localeDict.day} `;
   }
-  if(days > 1){
+  if (days > 1) {
     dayStr = `${days} ${store.localeDict.days} `;
   }
 
   mobileExpiryDateSpan.innerHTML = days === 0 ? store.localeDict.today : dayStr;
   node.appendChild(mobileExpiryDateSpan);
-}
+};
 
 const buildDesktopExpiryDateCaptionSpan = (node, expiryDate) => {
-  const desktopExpiryDateCaptionSpan = document.createElement('span');
-  desktopExpiryDateCaptionSpan.classList.add('my-domains-cell-expiry-caption-desktop');
+  const desktopExpiryDateCaptionSpan = document.createElement("span");
+  desktopExpiryDateCaptionSpan.classList.add(
+    "my-domains-cell-expiry-caption-desktop"
+  );
 
-  desktopExpiryDateCaptionSpan.innerText = formatDate(expiryDate); 
+  desktopExpiryDateCaptionSpan.innerText = formatDate(expiryDate);
   node.appendChild(desktopExpiryDateCaptionSpan);
-}
+};
 
 const buildMobileExpiryDateCaptionSpan = (node, expiryDate) => {
-  const mobileExpiryDateCaptionSpan = document.createElement('span');
-  mobileExpiryDateCaptionSpan.classList.add('my-domains-cell-expiry-caption-mobile');
+  const mobileExpiryDateCaptionSpan = document.createElement("span");
+  mobileExpiryDateCaptionSpan.classList.add(
+    "my-domains-cell-expiry-caption-mobile"
+  );
 
-  mobileExpiryDateCaptionSpan.innerText = formatDateShort(expiryDate); 
+  mobileExpiryDateCaptionSpan.innerText = formatDateShort(expiryDate);
   node.appendChild(mobileExpiryDateCaptionSpan);
-}
+};
 
 const buildExpiryDate = (cell, expiryDate) => {
-  cell.classList.add('my-domains-table-cell');
+  cell.classList.add("my-domains-table-cell");
 
-  const expiryDateCellDiv = document.createElement('div');
-  expiryDateCellDiv.classList.add('my-domains-cell-container');
+  const expiryDateCellDiv = document.createElement("div");
+  expiryDateCellDiv.classList.add("my-domains-cell-container");
 
   const isDomainExpired = expiryDate.getTime() <= new Date().getTime();
 
@@ -156,26 +162,26 @@ const buildExpiryDate = (cell, expiryDate) => {
   }
 
   cell.appendChild(expiryDateCellDiv);
-}
+};
 
 const buildArrowRight = (cell) => {
-  cell.classList.add('my-domains-table-cell-last');
+  cell.classList.add("my-domains-table-cell-last");
 
-  const rightChevronLottie = document.createElement('span');
-  rightChevronLottie.classList.add('my-domains-right-arrow-icon');
+  const rightChevronLottie = document.createElement("span");
+  rightChevronLottie.classList.add("my-domains-right-arrow-icon");
   cell.appendChild(rightChevronLottie);
-}
+};
 
 function renderRow(rowData) {
   const { domainName, salePricePromise, expiryDate } = rowData;
-  const row = $('.my-domains-table').insertRow(-1);
-  row.classList.add('my-domains-table-row');
+  const row = $(".my-domains-table").insertRow(-1);
+  row.classList.add("my-domains-table-row");
 
   row.onclick = function () {
     const domainNameWithoutDotTon = domainName.slice(0, -4);
     setDomainToBrowserHistory(domainNameWithoutDotTon);
     setDomain(domainNameWithoutDotTon).then(() => {
-      analyticService.sendEvent({ type: 'view_domain_info' })
+      analyticService.sendEvent({ type: "view_domain_info" });
     });
   };
 
@@ -187,7 +193,7 @@ function renderRow(rowData) {
 
 function renderMoreDomains(domains) {
   for (const domain of domains) {
-    const row = assembleRowData(domain)
+    const row = assembleRowData(domain);
     renderRow(row);
   }
 }
@@ -201,18 +207,19 @@ function firstRender(domains) {
 
 // --- BUTTONS ---
 // Navigate to starting page
-$('#noDomainsStartNowButton').addEventListener('click', () => {
+$("#noDomainsStartNowButton").addEventListener("click", () => {
   clear();
-  window.history.pushState('', 'TON DNS ', '#');
-  setScreen('startScreen');
+  window.history.pushState("", "TON Fingerprints DNS ", "#");
+  setScreen("startScreen");
 });
 
 // Load more button click
-$('#myDomainsLoadMoreButton').addEventListener('click', async () => {
+$("#myDomainsLoadMoreButton").addEventListener("click", async () => {
   hideLoadMoreButtonText();
   showLoadMoreButtonSpinner();
 
-  const { moreDomainsToDisplay, isLoadMore } = myDomainsController.getNextDomainsToDisplay();
+  const { moreDomainsToDisplay, isLoadMore } =
+    myDomainsController.getNextDomainsToDisplay();
   renderMoreDomains(moreDomainsToDisplay);
   hideLoadMoreButtonSpinner();
   showLoadMoreButtonText();
@@ -223,14 +230,14 @@ $('#myDomainsLoadMoreButton').addEventListener('click', async () => {
 });
 
 // --- Navigation button click
-function navigateToMyDomainsView () {
+function navigateToMyDomainsView() {
   clear();
-  window.history.pushState({}, 'TON DNS ', '#/my-domains');
-  setScreen('myDomainsView');
+  window.history.pushState({}, "TON Fingerprints DNS ", "#/my-domains");
+  setScreen("myDomainsView");
 }
 
-$('#myDomainsButton').addEventListener('click', navigateToMyDomainsView);
-$('#myDomainsMobileButton').addEventListener('click', () => {
+$("#myDomainsButton").addEventListener("click", navigateToMyDomainsView);
+$("#myDomainsMobileButton").addEventListener("click", () => {
   navigateToMyDomainsView();
   toggleMobileMenu();
 });
@@ -238,73 +245,75 @@ $('#myDomainsMobileButton').addEventListener('click', () => {
 
 // --- HIDE/SHOW TOGGLE METHODS ---
 function hideLoadMoreButton() {
-  $('#myDomainsLoadMoreButton').style.display = 'none';
+  $("#myDomainsLoadMoreButton").style.display = "none";
 }
 
 function showLoadMoreButton() {
-  $('#myDomainsLoadMoreButton').style.display = 'flex';
+  $("#myDomainsLoadMoreButton").style.display = "flex";
 }
 
 function hideLoadMoreButtonText() {
-  $('#myDomainsLoadMoreButtonText').style.display = 'none';
+  $("#myDomainsLoadMoreButtonText").style.display = "none";
 }
 
 function showLoadMoreButtonText() {
-  $('#myDomainsLoadMoreButtonText').style.display = 'block';
+  $("#myDomainsLoadMoreButtonText").style.display = "block";
 }
 
 function hideLoadMoreButtonSpinner() {
-  $('#myDomainsLoadMoreButtonLoader').style.display = 'none';
+  $("#myDomainsLoadMoreButtonLoader").style.display = "none";
 }
 
 function showLoadMoreButtonSpinner() {
-  $('#myDomainsLoadMoreButtonLoader').style.display = 'block';
+  $("#myDomainsLoadMoreButtonLoader").style.display = "block";
 }
 
-function showMyDomainsContainer() { // and hide noDomainsContainer
-  $('#myDomainsContainer').style.display = 'flex';
-  $('#noDomainsContainer').style.display = 'none';
+function showMyDomainsContainer() {
+  // and hide noDomainsContainer
+  $("#myDomainsContainer").style.display = "flex";
+  $("#noDomainsContainer").style.display = "none";
 }
 
-function showNoDomainsContainer() { // and hide myDomainsContainer
-  $('#myDomainsContainer').style.display = 'none';
-  $('#noDomainsContainer').style.display = 'flex';
+function showNoDomainsContainer() {
+  // and hide myDomainsContainer
+  $("#myDomainsContainer").style.display = "none";
+  $("#noDomainsContainer").style.display = "flex";
 }
 
 function showTableLoading() {
-  $('.my-domains-title').classList.add('my-domains-title-loading');
-  $('.my-domains-table-loading').style.display = 'flex';
+  $(".my-domains-title").classList.add("my-domains-title-loading");
+  $(".my-domains-table-loading").style.display = "flex";
   hideMyDomainsTable();
 }
 
 function hideTableLoading() {
-  $('.my-domains-title').classList.remove('my-domains-title-loading');
-  $('.my-domains-table-loading').style.display = 'none';
+  $(".my-domains-title").classList.remove("my-domains-title-loading");
+  $(".my-domains-table-loading").style.display = "none";
   showMyDomainsTable();
 }
 
 function showMyDomainsTable() {
-  $('.my-domains-table').removeAttribute('style');
+  $(".my-domains-table").removeAttribute("style");
 }
 
 function hideMyDomainsTable() {
-  $('.my-domains-table').style.display = 'none';
+  $(".my-domains-table").style.display = "none";
 }
 
 function showMyDomainsTitle() {
-  $('.my-domains-title').removeAttribute('style');
+  $(".my-domains-title").removeAttribute("style");
 }
 
 function hideMyDomainsTitle() {
-  $('.my-domains-title').style.display = 'none';
+  $(".my-domains-title").style.display = "none";
 }
 
 function centerView() {
-  $('#myDomainsView').style.justifyContent = 'center';
+  $("#myDomainsView").style.justifyContent = "center";
 }
 
 function resetViewAlignment() {
-  $('#myDomainsView').style.justifyContent = 'flex-start';
+  $("#myDomainsView").style.justifyContent = "flex-start";
 }
 
 // --------------------------------

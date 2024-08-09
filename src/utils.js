@@ -236,7 +236,7 @@ const setDomainToBrowserHistory = (domain) => {
 
   window.history.pushState(
     domain,
-    "TON DNS - " + domain,
+    "TON Fingerprints DNS - " + domain,
     "#" + encodeURIComponent(domain)
   );
 };
@@ -246,7 +246,11 @@ const pushModalInfoToBrowserHistory = (step) => {
     window.location.hash.substring(1)
   ).toLowerCase();
 
-  window.history.pushState({ step }, "TON DNS - " + step, `#${domainFromUrl}`);
+  window.history.pushState(
+    { step },
+    "TON Fingerprints DNS - " + step,
+    `#${domainFromUrl}`
+  );
 };
 
 const renderQr = (name, url, settings = {}) => {
