@@ -1,5 +1,5 @@
 {
-  "name": "TON DNS Domains",
-  "description": "*.ton domains",
-  "image": "https://dns.ton.org/icon.png"
+  "name": "TON Fingerprints DNS Domains",
+  "description": "*.fingerprints.ton domains",
+  "image": "https://dns.fingerprints.space/icon.png"
 }
