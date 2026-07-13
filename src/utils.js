@@ -482,37 +482,6 @@ function pushInOrder(arr, item, compareFunc) {
     arr.splice(insetionIndex, 0, item);
 }
 
-async function assembleDomainItems(nft_items) {
-    const domain_items = await nft_items.reduce(async (acc, curr) => {
-        const nft_item = curr;
-
-        const address = nft_item.address;
-        const dns_item = new TonWeb.dns.DnsItem(tonweb.provider, { address });
-
-        const name = await dns_item.methods.getDomain()
-
-        const lastFillUpTime = await dns_item.methods.getLastFillUpTime();
-        const expiring_at = new Date(lastFillUpTime * 1000 + MS_IN_ONE_LEAP_YEAR);
-
-        const domain_item = { name, expiring_at, address };
-
-        const arr = await acc;
-        pushInOrder(arr, domain_item, (a, b) => {
-          if (a.expiring_at < b.expiring_at) {
-            return 1;
-          }
-          if (a.expiring_at > b.expiring_at) {
-            return -1;
-          }
-          return 0;
-        });
-
-        return arr;
-    }, []);
-    
-    return domain_items;
-}
-
 function sleep(ms = 300) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
@@ -638,18 +607,556 @@ async function fetchAndRetry(fetchFn) {
     }
 }
 
-async function getSalePrice(domainName, isTestnet = false) {
-    const response = await fetchAndRetry(async () => (
-        await fetch(`${TONAPI_WRAPPER_API}/sale-price?domainName=${domainName}`)
-    ));
-    const { data } = await response.json();
+const TONCENTER_INDEX_MIN_REQUEST_INTERVAL_MS = 100;
+const TONCENTER_INDEX_ADDRESS_BATCH_SIZE = 50;
+const TONCENTER_INDEX_TRANSACTION_BATCH_SIZE = 10;
+const TONCENTER_INDEX_HASH_BATCH_SIZE = 50;
+const TONCENTER_INDEX_PAGE_LIMIT = 1000;
+let toncenterIndexNextRequestAt = 0;
 
-    if (!data.length) {
-        console.error(`Bids for the given domain (${domainName}) were not found`);
+async function waitForToncenterIndexRequestSlot() {
+    const requestAt = Math.max(Date.now(), toncenterIndexNextRequestAt);
+    toncenterIndexNextRequestAt = requestAt + TONCENTER_INDEX_MIN_REQUEST_INTERVAL_MS;
+
+    const delay = requestAt - Date.now();
+    if (delay > 0) {
+        await sleep(delay);
+    }
+}
+
+function getToncenterIndexEndpoint(isTestnet = false) {
+    return isTestnet
+        ? TONCENTER_INDEX_ENDPOINT_TESTNET
+        : TONCENTER_INDEX_ENDPOINT;
+}
+
+function getToncenterIndexApiKey(isTestnet = false) {
+    return isTestnet
+        ? TONCENTER_API_KEY_TESTNET
+        : TONCENTER_API_KEY;
+}
+
+function getToncenterIndexHeaders(isTestnet = false) {
+    return {
+        'X-API-Key': getToncenterIndexApiKey(isTestnet),
+    };
+}
+
+function appendSearchParam(searchParams, key, value) {
+    if (value === undefined || value === null) {
         return;
     }
 
-    return TonWeb.utils.fromNano(data[0].value.toString());
+    if (Array.isArray(value)) {
+        value.forEach((item) => appendSearchParam(searchParams, key, item));
+        return;
+    }
+
+    searchParams.append(key, String(value));
+}
+
+async function readToncenterIndexResponse(response) {
+    if (!response) {
+        throw new Error('Toncenter v3 request failed');
+    }
+
+    const json = await response.json();
+    if (!response.ok || json.error) {
+        throw new Error(json.error || response.statusText);
+    }
+
+    return json;
+}
+
+async function fetchToncenterIndex(method, params = {}, isTestnet = false) {
+    const searchParams = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => appendSearchParam(searchParams, key, value));
+
+    const query = searchParams.toString();
+    const endpoint = getToncenterIndexEndpoint(isTestnet);
+    const url = `${endpoint}/${method}${query ? `?${query}` : ''}`;
+    const response = await fetchAndRetry(async () => {
+        await waitForToncenterIndexRequestSlot();
+        return fetch(url, {
+            headers: getToncenterIndexHeaders(isTestnet),
+        });
+    });
+
+    return readToncenterIndexResponse(response);
+}
+
+function splitIntoBatches(items, batchSize = TONCENTER_INDEX_ADDRESS_BATCH_SIZE) {
+    const batches = [];
+    for (let offset = 0; offset < items.length; offset += batchSize) {
+        batches.push(items.slice(offset, offset + batchSize));
+    }
+    return batches;
+}
+
+function getToncenterAddressKey(address) {
+    const value = String(address || '');
+    const rawAddressMatch = value.match(/^(-?\d+):([0-9a-fA-F]{64})$/);
+    if (!rawAddressMatch) {
+        return value;
+    }
+
+    return `${rawAddressMatch[1]}:${rawAddressMatch[2].toUpperCase()}`;
+}
+
+function getUniqueAddresses(addresses) {
+    const addressesByKey = new Map();
+    for (const address of addresses) {
+        if (address) {
+            addressesByKey.set(getToncenterAddressKey(address), address);
+        }
+    }
+    return [...addressesByKey.values()];
+}
+
+async function fetchAccountStatesByAddresses(addresses, isTestnet = false) {
+    const accountStates = [];
+    const uniqueAddresses = getUniqueAddresses(addresses);
+
+    for (const addressBatch of splitIntoBatches(uniqueAddresses)) {
+        const result = await fetchToncenterIndex('accountStates', {
+            address: addressBatch,
+            include_boc: true,
+        }, isTestnet);
+
+        accountStates.push(...(result.accounts || []));
+    }
+
+    return accountStates;
+}
+
+function getDomainLastFillUpTimeFromDataBoc(dataBoc) {
+    if (!dataBoc) {
+        throw new Error('DNS item account state has no data BOC');
+    }
+
+    const dataCell = TonWeb.boc.Cell.oneFromBoc(TonWeb.utils.base64ToBytes(dataBoc));
+    const lastFillUpTimeBitLength = 64;
+    const startBit = dataCell.bits.cursor - lastFillUpTimeBitLength;
+    if (startBit < 0) {
+        throw new Error('DNS item account state is too short');
+    }
+
+    let lastFillUpTime = 0;
+    for (let bitIndex = startBit; bitIndex < dataCell.bits.cursor; bitIndex += 1) {
+        lastFillUpTime = lastFillUpTime * 2 + (dataCell.bits.get(bitIndex) ? 1 : 0);
+    }
+    if (!Number.isSafeInteger(lastFillUpTime)) {
+        throw new Error('DNS item last fill up time is outside the safe integer range');
+    }
+
+    return lastFillUpTime;
+}
+
+async function fetchDomainLastFillUpTimes(addresses, isTestnet = false) {
+    const lastFillUpTimesByAddress = new Map();
+    const accountStates = await fetchAccountStatesByAddresses(addresses, isTestnet);
+
+    for (const accountState of accountStates) {
+        try {
+            const lastFillUpTime = getDomainLastFillUpTimeFromDataBoc(accountState.data_boc);
+            lastFillUpTimesByAddress.set(
+                getToncenterAddressKey(accountState.address),
+                lastFillUpTime,
+            );
+        } catch (error) {
+            console.error(`Failed to read DNS expiration from ${accountState.address}`, error);
+        }
+    }
+
+    return lastFillUpTimesByAddress;
+}
+
+function normalizeDomainName(domain) {
+    if (!domain) {
+        return null;
+    }
+
+    return domain.endsWith('.ton') ? domain : `${domain}.ton`;
+}
+
+function getDomainNameFromNftItem(nftItem) {
+    return normalizeDomainName(nftItem.content && nftItem.content.domain);
+}
+
+async function getDomainNameFromContract(address) {
+    const dnsItem = new TonWeb.dns.DnsItem(tonweb.provider, { address });
+    const domain = await dnsItem.methods.getDomain();
+    return domain.endsWith('.ton') ? domain : `${domain}.ton`;
+}
+
+async function fetchDnsNftItemsByOwner(ownerAddress, isTestnet = false) {
+    const collectionAddress = isTestnet ? TON_ROOT_ADDRESS_TESTNET : TON_ROOT_ADDRESS;
+    const limit = 1000;
+    const nftItems = [];
+    let offset = 0;
+
+    while (true) {
+        const result = await fetchToncenterIndex('nft/items', {
+            owner_address: ownerAddress,
+            collection_address: collectionAddress,
+            include_on_sale: true,
+            limit,
+            offset,
+        }, isTestnet);
+
+        const pageItems = result.nft_items || [];
+        nftItems.push(...pageItems);
+
+        if (pageItems.length < limit) {
+            break;
+        }
+
+        offset += limit;
+    }
+
+    return nftItems;
+}
+
+async function fetchWonDnsAuctionsByBidder(bidderAddress, isTestnet = false) {
+    if (isTestnet) {
+        return [];
+    }
+
+    const limit = 1000;
+    const auctions = [];
+    let after;
+
+    while (true) {
+        const result = await fetchToncenterIndex('dns/activeAuctions', {
+            bidder: bidderAddress,
+            state: 'won',
+            include_nft_items: true,
+            after,
+            limit,
+        });
+
+        auctions.push(...(result.auctions || []));
+
+        if (!result.next_cursor) {
+            break;
+        }
+        if (result.next_cursor === after) {
+            throw new Error('Toncenter DNS auctions pagination cursor did not advance');
+        }
+
+        after = result.next_cursor;
+    }
+
+    return auctions;
+}
+
+function getDomainExpirationTime(lastFillUpTime) {
+    return Number(lastFillUpTime) + Math.floor(MS_IN_ONE_LEAP_YEAR / 1000);
+}
+
+function isDomainInExpiringPeriod(expiringAt, expiringThreshold) {
+    return Number.isFinite(expiringAt) && expiringAt <= expiringThreshold;
+}
+
+function getTonPriceFromNano(value) {
+    if (value === undefined || value === null || value === '') {
+        return null;
+    }
+
+    return TonWeb.utils.fromNano(value.toString());
+}
+
+async function assembleDomainItems(nftItems, lastFillUpTimesByAddress, expiringPeriodInDays) {
+    const domainItems = [];
+    const expiringThreshold = Math.floor(Date.now() / 1000) + expiringPeriodInDays * 24 * 60 * 60;
+
+    for (const nftItem of nftItems) {
+        const address = nftItem.address;
+        const name = getDomainNameFromNftItem(nftItem) || await getDomainNameFromContract(address);
+        const lastFillUpTime = lastFillUpTimesByAddress.get(getToncenterAddressKey(address));
+        if (!Number.isFinite(lastFillUpTime)) {
+            console.error(`The expiration time for the given domain (${name}) was not found`);
+            continue;
+        }
+
+        const expiring_at = getDomainExpirationTime(lastFillUpTime);
+
+        if (!isDomainInExpiringPeriod(expiring_at, expiringThreshold)) {
+            continue;
+        }
+
+        const domainItem = {
+            name,
+            expiring_at,
+            address,
+            on_sale: nftItem.on_sale,
+            sale_contract_address: nftItem.sale_contract_address,
+            auction_contract_address: nftItem.auction_contract_address,
+        };
+
+        pushInOrder(domainItems, domainItem, (a, b) => {
+            if (a.expiring_at < b.expiring_at) {
+                return 1;
+            }
+            if (a.expiring_at > b.expiring_at) {
+                return -1;
+            }
+            return 0;
+        });
+    }
+
+    return domainItems;
+}
+
+function assembleAuctionDomainItems(auctions, expiringPeriodInDays) {
+    const domainItems = [];
+    const expiringThreshold = Math.floor(Date.now() / 1000) + expiringPeriodInDays * 24 * 60 * 60;
+
+    for (const auction of auctions) {
+        const nftItem = auction.nft_item || {};
+        const address = auction.nft_item_address || nftItem.address;
+        const name = normalizeDomainName(auction.domain) || getDomainNameFromNftItem(nftItem);
+        const expiring_at = getDomainExpirationTime(auction.last_fill_up_time);
+
+        if (!address || !name || !isDomainInExpiringPeriod(expiring_at, expiringThreshold)) {
+            continue;
+        }
+
+        domainItems.push({
+            name,
+            expiring_at,
+            address,
+            on_sale: nftItem.on_sale,
+            sale_contract_address: nftItem.sale_contract_address,
+            auction_contract_address: nftItem.auction_contract_address,
+            sale_price: getTonPriceFromNano(auction.max_bid_amount),
+        });
+    }
+
+    return domainItems;
+}
+
+function mergeDomainItems(...domainItemGroups) {
+    const domainItemsByAddress = new Map();
+
+    for (const domainItem of domainItemGroups.flat()) {
+        const existingItem = domainItemsByAddress.get(domainItem.address);
+        if (!existingItem) {
+            domainItemsByAddress.set(domainItem.address, domainItem);
+            continue;
+        }
+
+        if (existingItem.sale_price === undefined || existingItem.sale_price === null) {
+            existingItem.sale_price = domainItem.sale_price;
+        }
+    }
+
+    return [...domainItemsByAddress.values()];
+}
+
+function isDomainDeploymentTransaction(transaction) {
+    return transaction
+        && (transaction.orig_status === 'nonexist' || transaction.orig_status === 'uninit')
+        && transaction.end_status === 'active'
+        && (!transaction.description || transaction.description.aborted !== true)
+        && transaction.in_msg
+        && transaction.in_msg.value !== undefined
+        && transaction.in_msg.value !== null;
+}
+
+function isPotentialDomainAuctionBidTransaction(transaction) {
+    return transaction
+        && transaction.orig_status === 'active'
+        && transaction.end_status === 'active'
+        && (!transaction.description || transaction.description.aborted !== true)
+        && transaction.in_msg
+        && (
+            transaction.in_msg.decoded_opcode === 'text_comment'
+            || transaction.in_msg.opcode === '0x00000000'
+            || transaction.in_msg.opcode === 0
+        );
+}
+
+async function fetchAuctionBidActionsByTransactionHashes(transactionHashes, isTestnet = false) {
+    const actions = [];
+    const uniqueTransactionHashes = [...new Set(transactionHashes.filter(Boolean))];
+
+    for (const transactionHashBatch of splitIntoBatches(
+        uniqueTransactionHashes,
+        TONCENTER_INDEX_HASH_BATCH_SIZE,
+    )) {
+        const result = await fetchToncenterIndex('actions', {
+            tx_hash: transactionHashBatch,
+            action_type: 'auction_bid',
+            limit: TONCENTER_INDEX_PAGE_LIMIT,
+            sort: 'desc',
+        }, isTestnet);
+
+        actions.push(...(result.actions || []));
+    }
+
+    return actions;
+}
+
+function getAuctionBidAddress(action) {
+    const details = action && action.details;
+    return details && (details.auction || details.nft_item);
+}
+
+function getAuctionBidAmount(action) {
+    const details = action && action.details;
+    return details && details.amount;
+}
+
+async function fetchDomainAuctionPrices(
+    addresses,
+    isTestnet = false,
+    onAddressBatchLoaded = () => {},
+) {
+    const pricesByAddress = new Map();
+    const uniqueAddresses = getUniqueAddresses(addresses);
+
+    for (const addressBatch of splitIntoBatches(
+        uniqueAddresses,
+        TONCENTER_INDEX_TRANSACTION_BATCH_SIZE,
+    )) {
+        const missingAddressKeys = new Set(addressBatch.map(getToncenterAddressKey));
+        let offset = 0;
+
+        try {
+            while (missingAddressKeys.size > 0) {
+                const result = await fetchToncenterIndex('transactions', {
+                    account: addressBatch,
+                    limit: TONCENTER_INDEX_PAGE_LIMIT,
+                    offset,
+                    sort: 'desc',
+                }, isTestnet);
+                const transactions = result.transactions || [];
+
+                const potentialBidTransactionHashes = transactions
+                    .filter((transaction) => (
+                        missingAddressKeys.has(getToncenterAddressKey(transaction.account))
+                        && isPotentialDomainAuctionBidTransaction(transaction)
+                    ))
+                    .map((transaction) => transaction.hash);
+                const auctionBidActions = await fetchAuctionBidActionsByTransactionHashes(
+                    potentialBidTransactionHashes,
+                    isTestnet,
+                );
+
+                for (const action of auctionBidActions) {
+                    const addressKey = getToncenterAddressKey(getAuctionBidAddress(action));
+                    const amount = getAuctionBidAmount(action);
+                    if (
+                        action.success !== true
+                        || !missingAddressKeys.has(addressKey)
+                        || amount === undefined
+                        || amount === null
+                    ) {
+                        continue;
+                    }
+
+                    pricesByAddress.set(addressKey, amount);
+                    missingAddressKeys.delete(addressKey);
+                }
+
+                for (const transaction of transactions) {
+                    const addressKey = getToncenterAddressKey(transaction.account);
+                    if (!missingAddressKeys.has(addressKey) || !isDomainDeploymentTransaction(transaction)) {
+                        continue;
+                    }
+
+                    pricesByAddress.set(addressKey, transaction.in_msg.value);
+                    missingAddressKeys.delete(addressKey);
+                }
+
+                if (missingAddressKeys.size === 0 || transactions.length < TONCENTER_INDEX_PAGE_LIMIT) {
+                    break;
+                }
+
+                offset += TONCENTER_INDEX_PAGE_LIMIT;
+            }
+        } catch (error) {
+            console.error('Failed to load DNS auction prices from Toncenter', error);
+        }
+
+        const batchPricesByAddress = new Map();
+        for (const address of addressBatch) {
+            const addressKey = getToncenterAddressKey(address);
+            if (pricesByAddress.has(addressKey)) {
+                batchPricesByAddress.set(addressKey, pricesByAddress.get(addressKey));
+            }
+        }
+        onAddressBatchLoaded(batchPricesByAddress, addressBatch);
+    }
+
+    return pricesByAddress;
+}
+
+async function attachDomainSalePrices(
+    domainItems,
+    isTestnet = false,
+    onSalePricesUpdated = () => {},
+) {
+    const domainsWithoutPrice = domainItems.filter((domainItem) => (
+        domainItem.address
+        && (domainItem.sale_price === undefined || domainItem.sale_price === null)
+    ));
+    const domainsByAddress = new Map(domainsWithoutPrice.map((domainItem) => (
+        [getToncenterAddressKey(domainItem.address), domainItem]
+    )));
+
+    await fetchDomainAuctionPrices(
+        domainsWithoutPrice.map((domainItem) => domainItem.address),
+        isTestnet,
+        (pricesByAddress, addressBatch) => {
+            const updatedDomainItems = [];
+
+            for (const address of addressBatch) {
+                const addressKey = getToncenterAddressKey(address);
+                const domainItem = domainsByAddress.get(addressKey);
+                if (!domainItem) {
+                    continue;
+                }
+
+                const price = pricesByAddress.get(addressKey);
+                try {
+                    if (price === undefined || price === null) {
+                        console.error(`The auction price for the given domain (${domainItem.name}) was not found`);
+                        domainItem.sale_price = null;
+                    } else {
+                        domainItem.sale_price = getTonPriceFromNano(price);
+                    }
+                } catch (error) {
+                    console.error(`Failed to parse the sale price for ${domainItem.name}`, error);
+                    domainItem.sale_price = null;
+                }
+
+                updatedDomainItems.push(domainItem);
+            }
+
+            onSalePricesUpdated(updatedDomainItems);
+        },
+    );
+
+    return domainItems;
+}
+
+async function fetchExpiringDomains(accountAddress, period, isTestnet = false) {
+    const nftItems = await fetchDnsNftItemsByOwner(accountAddress, isTestnet);
+    const [lastFillUpTimesByAddress, wonAuctions] = await Promise.all([
+        fetchDomainLastFillUpTimes(nftItems.map((nftItem) => nftItem.address), isTestnet),
+        fetchWonDnsAuctionsByBidder(accountAddress, isTestnet).catch((error) => {
+            console.error('Failed to load won DNS auctions from Toncenter', error);
+            return [];
+        }),
+    ]);
+
+    const ownedDomainItems = await assembleDomainItems(nftItems, lastFillUpTimesByAddress, period);
+    const auctionDomainItems = assembleAuctionDomainItems(wonAuctions, period);
+    const domainItems = mergeDomainItems(ownedDomainItems, auctionDomainItems);
+
+    return domainItems.sort((a, b) => b.expiring_at - a.expiring_at);
 }
 
 // GG INTEGRATION
