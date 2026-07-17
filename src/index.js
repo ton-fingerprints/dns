@@ -727,6 +727,10 @@ function togglePaymentModal({
     const paymentLottieSuccess = $('#paymentLottieSuccess')
     const paymentLottieFailure = $('#paymentLottieFailure')
     const showOtherPaymentMethods = $('#otherPaymentsMethods')
+    const otherPaymentMethodsContainer = $('#otherPaymentsMethodsContainer')
+    const otherPaymentMethodsButtonContainer = $('#otherPaymentsMethodsContainer .button__container')
+    const copyPaymentLinkButton = $('#copyLinkbutton')
+    const isReauction = modalType === 'start expired auction'
 
     adjustPaymentModalCaption(modalType)
 
@@ -782,9 +786,11 @@ function togglePaymentModal({
         toggle('.bid__modal', false)
         toggle('.bid__modal--backdrop', false, 'flex', true, 200)
         $('.bid__modal').style.justifyContent = 'center'
-        $('#otherPaymentsMethodsContainer').classList.remove('show')
-        $('#otherPaymentsMethodsContainer').style.display = 'none'
+        otherPaymentMethodsContainer.classList.remove('show')
+        otherPaymentMethodsContainer.style.display = 'none'
         $('#otherPaymentsMethods svg').classList.remove('rotate')
+        showOtherPaymentMethods.style.display = ''
+        otherPaymentMethodsButtonContainer.appendChild(copyPaymentLinkButton)
         $('body').classList.remove('scroll__disabled')
 
 
@@ -1036,7 +1042,17 @@ function togglePaymentModal({
         setAddress($('#transactionAddress'), destinationAddress)
 
         showOtherPaymentMethods.removeEventListener('click', renderOtherPaymentsMethods)
-        showOtherPaymentMethods.addEventListener('click', renderOtherPaymentsMethods)
+        otherPaymentMethodsContainer.classList.remove('show')
+        otherPaymentMethodsContainer.style.display = 'none'
+
+        if (isReauction) {
+            showOtherPaymentMethods.style.display = 'none'
+            showOtherPaymentMethods.parentNode.appendChild(copyPaymentLinkButton)
+        } else {
+            showOtherPaymentMethods.style.display = ''
+            otherPaymentMethodsButtonContainer.appendChild(copyPaymentLinkButton)
+            showOtherPaymentMethods.addEventListener('click', renderOtherPaymentsMethods)
+        }
     }
 
     const updateBidModalPaymentData = () => {
