@@ -406,6 +406,14 @@ async function getAuctionBidPayload(string) {
     return payload
 }
 
+async function getDnsBalanceReleasePayload() {
+    const cell = new TonWeb.boc.Cell();
+    cell.bits.writeUint(0x4ed14b65, 32);
+    cell.bits.writeUint(0, 64); // query_id
+
+    return TonWeb.utils.bytesToBase64(await cell.toBoc(false));
+}
+
 /**
  * Method to construct a transaction payload for updating a dns record.
  * Works for both claimed and unclaimed domains.
@@ -522,9 +530,9 @@ function getDifferenceBetweenDates(futureDate, pastDate) {
     return { days, hours, minutes };
 }
 
-// modalType: 'place a bid' | 'renew' | 'manage domain'
+// modalType: 'place a bid' | 'start expired auction' | 'renew' | 'manage domain'
 function adjustPaymentModalCaption(modalType) {
-    if (modalType === 'place a bid') {
+    if (modalType === 'place a bid' || modalType === 'start expired auction') {
         $('#bidModalSubheader').innerText = store.localeDict.enter_amount;
         $('#bid__modal--bid__input').classList.remove('disabled__input');
 
