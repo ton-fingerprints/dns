@@ -963,26 +963,59 @@ function mergeDomainItems(...domainItemGroups) {
 }
 
 function isDomainDeploymentTransaction(transaction) {
-    return transaction
-        && (transaction.orig_status === 'nonexist' || transaction.orig_status === 'uninit')
-        && transaction.end_status === 'active'
-        && (!transaction.description || transaction.description.aborted !== true)
-        && transaction.in_msg
-        && transaction.in_msg.value !== undefined
-        && transaction.in_msg.value !== null;
+    if (!transaction || !transaction.in_msg) {
+        return false;
+    }
+    if (transaction.orig_status !== 'nonexist' && transaction.orig_status !== 'uninit') {
+        return false;
+    }
+    if (transaction.end_status !== 'active') {
+        return false;
+    }
+    if (transaction.description && transaction.description.aborted === true) {
+        return false;
+    }
+
+    const { value } = transaction.in_msg;
+    return value !== undefined && value !== null;
+}
+
+function isActiveNonAbortedTransaction(transaction) {
+    if (!transaction || !transaction.in_msg) {
+        return false;
+    }
+    if (transaction.orig_status !== 'active' || transaction.end_status !== 'active') {
+        return false;
+    }
+
+    return !transaction.description || transaction.description.aborted !== true;
 }
 
 function isPotentialDomainAuctionBidTransaction(transaction) {
-    return transaction
-        && transaction.orig_status === 'active'
-        && transaction.end_status === 'active'
-        && (!transaction.description || transaction.description.aborted !== true)
-        && transaction.in_msg
-        && (
-            transaction.in_msg.decoded_opcode === 'text_comment'
-            || transaction.in_msg.opcode === '0x00000000'
-            || transaction.in_msg.opcode === 0
-        );
+    if (!isActiveNonAbortedTransaction(transaction)) {
+        return false;
+    }
+
+    const { decoded_opcode, opcode } = transaction.in_msg;
+    return decoded_opcode === 'text_comment'
+        || opcode === '0x00000000'
+        || opcode === 0
+        || opcode === null; // Toncenter represents an empty message body this way.
+}
+
+function isDomainReauctionStartTransaction(transaction) {
+    if (!isActiveNonAbortedTransaction(transaction)) {
+        return false;
+    }
+
+    const { decoded_opcode, opcode, value } = transaction.in_msg;
+    if (value === undefined || value === null) {
+        return false;
+    }
+
+    return decoded_opcode === 'dns_balance_release'
+        || opcode === '0x4ed14b65'
+        || opcode === 0x4ed14b65;
 }
 
 async function fetchAuctionBidActionsByTransactionHashes(transactionHashes, isTestnet = false) {
@@ -1014,6 +1047,14 @@ function getAuctionBidAddress(action) {
 function getAuctionBidAmount(action) {
     const details = action && action.details;
     return details && details.amount;
+}
+
+function getDomainTransactionKey(address, transactionHash) {
+    if (!address || !transactionHash) {
+        return null;
+    }
+
+    return `${getToncenterAddressKey(address)}:${transactionHash}`;
 }
 
 async function fetchDomainAuctionPrices(
@@ -1052,25 +1093,59 @@ async function fetchDomainAuctionPrices(
                     isTestnet,
                 );
 
+                const potentialBidTransactionHashSet = new Set(potentialBidTransactionHashes);
+                const auctionBidAmountsByTransaction = new Map();
                 for (const action of auctionBidActions) {
-                    const addressKey = getToncenterAddressKey(getAuctionBidAddress(action));
                     const amount = getAuctionBidAmount(action);
+                    const address = getAuctionBidAddress(action);
                     if (
                         action.success !== true
-                        || !missingAddressKeys.has(addressKey)
+                        || !address
+                        || !Array.isArray(action.transactions)
                         || amount === undefined
                         || amount === null
                     ) {
                         continue;
                     }
 
-                    pricesByAddress.set(addressKey, amount);
-                    missingAddressKeys.delete(addressKey);
+                    for (const transactionHash of action.transactions) {
+                        if (!potentialBidTransactionHashSet.has(transactionHash)) {
+                            continue;
+                        }
+
+                        const transactionKey = getDomainTransactionKey(address, transactionHash);
+                        if (transactionKey) {
+                            auctionBidAmountsByTransaction.set(transactionKey, amount);
+                        }
+                    }
                 }
 
                 for (const transaction of transactions) {
                     const addressKey = getToncenterAddressKey(transaction.account);
-                    if (!missingAddressKeys.has(addressKey) || !isDomainDeploymentTransaction(transaction)) {
+                    if (!missingAddressKeys.has(addressKey)) {
+                        continue;
+                    }
+
+                    const transactionKey = getDomainTransactionKey(
+                        transaction.account,
+                        transaction.hash,
+                    );
+                    if (transactionKey && auctionBidAmountsByTransaction.has(transactionKey)) {
+                        pricesByAddress.set(
+                            addressKey,
+                            auctionBidAmountsByTransaction.get(transactionKey),
+                        );
+                        missingAddressKeys.delete(addressKey);
+                        continue;
+                    }
+
+                    if (isDomainReauctionStartTransaction(transaction)) {
+                        pricesByAddress.set(addressKey, transaction.in_msg.value);
+                        missingAddressKeys.delete(addressKey);
+                        continue;
+                    }
+
+                    if (!isDomainDeploymentTransaction(transaction)) {
                         continue;
                     }
 
