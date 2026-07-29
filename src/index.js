@@ -180,6 +180,12 @@ const setDomain = (domain, isTimerMounted) => {
         if (domainExists && ownerAddress) {
             lastFillUpTime = await dnsItem.methods.getLastFillUpTime()
         }
+        const isDomainExpired = Boolean(
+            domainExists &&
+            ownerAddress &&
+            !auctionInfo &&
+            Math.floor(Date.now() / 1000) - lastFillUpTime > MS_IN_ONE_LEAP_YEAR / 1000
+        )
 
         if (currentDomain === domain) {
             if (!domainExists) {
@@ -205,10 +211,8 @@ const setDomain = (domain, isTimerMounted) => {
                     // ---
                     // Always allow to renew a domain if it's expried OR
                     // allow to renew it only if the expiry date is within the specified limit
-                    const lastFillUpTime = await dnsItem.methods.getLastFillUpTime();
                     const expiryDate = new Date(lastFillUpTime * 1000 + MS_IN_ONE_LEAP_YEAR);
 
-                    const isDomainExpired = expiryDate.getTime() <= new Date().getTime();
                     const { days } = getDifferenceBetweenDates(expiryDate, new Date()); // always returns absolute difference
 
                     const isDomainRenewable = isDomainExpired || days <= DOMAIN_RENEW_LIMIT_IN_DAYS;
@@ -224,10 +228,6 @@ const setDomain = (domain, isTimerMounted) => {
                     $('#renewDomainButton').style.display = 'none';
 
                     // GG INTEGRATION
-                    const lastFillUpTime = await dnsItem.methods.getLastFillUpTime();
-                    const expiryDate = new Date(lastFillUpTime * 1000 + MS_IN_ONE_LEAP_YEAR);
-                    const isDomainExpired = expiryDate.getTime() <= new Date().getTime();
-
                     if (!isDomainExpired) {
                         ggDomainData = await getGGDomainData(domainAddressString);
                     }
@@ -241,7 +241,8 @@ const setDomain = (domain, isTimerMounted) => {
                     domainAddressString,
                     ownerAddress.toString(true, true, true, IS_TESTNET),
                     lastFillUpTime,
-                    isTakenByUser
+                    isTakenByUser,
+                    isDomainExpired
                 )
 
                 // GG INTEGRATION
@@ -506,6 +507,7 @@ const renderBusyDomain = (
     ownerAddress,
     lastFillUpTime,
     isTakenByUser,
+    isDomainExpired,
 ) => {
     domainType = BUSY_DOMAIN_TYPE
 
@@ -520,14 +522,26 @@ const renderBusyDomain = (
         attachPaymentModalListeners('renew', domain, RENEW_DOMAIN_PRICE, '#renewDomainButton', domainItemAddress)
     }
 
-    if (isDateEqual) {
-        return;
+    if (isDomainExpired && !isTakenByUser) {
+        const minBid = TonWeb.utils.fromNano(getMinPrice(domain));
+        $('#startExpiredAuctionButton').style.display = 'inline-flex';
+        attachPaymentModalListeners(
+            'start expired auction',
+            domain,
+            minBid,
+            '#startExpiredAuctionButton',
+            domainItemAddress,
+            getDnsBalanceReleasePayload
+        );
+    } else {
+        $('#startExpiredAuctionButton').style.display = 'none';
     }
 
-    $('#flip-clock-container').dataset.endDate = expiresDate
-    FlipTimer.addTimer('#flip-clock-container', true)
+    if (!isDateEqual) {
+        $('#flip-clock-container').dataset.endDate = expiresDate
+        FlipTimer.addTimer('#flip-clock-container', true)
+    }
 
-    const isDomainExpired = expiresDate.getTime() <= new Date().getTime();
     if (isDomainExpired) {
         $('#busyDomainYetToExpire').style.display = 'none';
         $('#busyDomainAlreadyExpired').style.display = 'inline';
@@ -660,20 +674,23 @@ const attachPaymentModalListeners = (
     price,
     modalButton,
     address,
+    payloadIn,
 ) => {
     if (removeListeners[modalButton]) {
         removeListeners[modalButton]()
     }
     const showOtherPaymentMethods = $('#otherPaymentsMethods')
 
-    const togglePaymentModalOnClick = (e) => {
+    const togglePaymentModalOnClick = async (e) => {
         e.preventDefault()
         e.stopPropagation()
+        const payload = typeof payloadIn === 'function' ? await payloadIn() : payloadIn;
         togglePaymentModal({
             modalType,
             domain,
             price,
             address,
+            payloadIn: payload,
         });
     }
 
@@ -710,6 +727,10 @@ function togglePaymentModal({
     const paymentLottieSuccess = $('#paymentLottieSuccess')
     const paymentLottieFailure = $('#paymentLottieFailure')
     const showOtherPaymentMethods = $('#otherPaymentsMethods')
+    const otherPaymentMethodsContainer = $('#otherPaymentsMethodsContainer')
+    const otherPaymentMethodsButtonContainer = $('#otherPaymentsMethodsContainer .button__container')
+    const copyPaymentLinkButton = $('#copyLinkbutton')
+    const isReauction = modalType === 'start expired auction'
 
     adjustPaymentModalCaption(modalType)
 
@@ -765,9 +786,11 @@ function togglePaymentModal({
         toggle('.bid__modal', false)
         toggle('.bid__modal--backdrop', false, 'flex', true, 200)
         $('.bid__modal').style.justifyContent = 'center'
-        $('#otherPaymentsMethodsContainer').classList.remove('show')
-        $('#otherPaymentsMethodsContainer').style.display = 'none'
+        otherPaymentMethodsContainer.classList.remove('show')
+        otherPaymentMethodsContainer.style.display = 'none'
         $('#otherPaymentsMethods svg').classList.remove('rotate')
+        showOtherPaymentMethods.style.display = ''
+        otherPaymentMethodsButtonContainer.appendChild(copyPaymentLinkButton)
         $('body').classList.remove('scroll__disabled')
 
 
@@ -1014,12 +1037,22 @@ function togglePaymentModal({
         toggle('.bid__modal--first__step', false)
         toggle('.bid__modal--second__step', true)
 
-        renderQr('#freeQr', 'https://app.tonkeeper.com/transfer/' + destinationAddress + '?text=' + encodeURIComponent(domain) + '&amount=' + encodeURIComponent(new BigNumber(localPrice).multipliedBy(1000000000)))
+        renderQr('#freeQr', buildTransferUrl('https://app.tonkeeper.com/transfer/'))
 
         setAddress($('#transactionAddress'), destinationAddress)
 
         showOtherPaymentMethods.removeEventListener('click', renderOtherPaymentsMethods)
-        showOtherPaymentMethods.addEventListener('click', renderOtherPaymentsMethods)
+        otherPaymentMethodsContainer.classList.remove('show')
+        otherPaymentMethodsContainer.style.display = 'none'
+
+        if (isReauction) {
+            showOtherPaymentMethods.style.display = 'none'
+            showOtherPaymentMethods.parentNode.appendChild(copyPaymentLinkButton)
+        } else {
+            showOtherPaymentMethods.style.display = ''
+            otherPaymentMethodsButtonContainer.appendChild(copyPaymentLinkButton)
+            showOtherPaymentMethods.addEventListener('click', renderOtherPaymentsMethods)
+        }
     }
 
     const updateBidModalPaymentData = () => {
@@ -1033,20 +1066,30 @@ function togglePaymentModal({
 
     const prepareLinks = () => {
         const isExtensionInstalled = !isMobile() && window.ton;
-        const buyUrl = 'ton://transfer/' + destinationAddress + '?text=' + encodeURIComponent(domain) + '&amount=' + encodeURIComponent(new BigNumber(localPrice).multipliedBy(1000000000));
+        const buyUrl = buildTransferUrl('ton://transfer/');
+        const tonkeeperUrl = buildTransferUrl('https://app.tonkeeper.com/transfer/');
 
         if (isExtensionInstalled) {
             $('#freeBtn').href = buyUrl;
         } else {
-            $('#freeBtn').href = 'https://app.tonkeeper.com/transfer/' + destinationAddress + '?text=' + encodeURIComponent(domain) + '&amount=' + encodeURIComponent(new BigNumber(localPrice).multipliedBy(1000000000));
+            $('#freeBtn').href = tonkeeperUrl;
         }
 
         if (isMobile()) {
             $('#freeBtn').href = buyUrl;
         }
 
-        $('#tonkeeperButton').href = 'https://app.tonkeeper.com/transfer/' + destinationAddress + '?text=' + encodeURIComponent(domain) + '&amount=' + encodeURIComponent(new BigNumber(localPrice).multipliedBy(1000000000));
+        $('#tonkeeperButton').href = tonkeeperUrl;
         $('#copyLinkbutton').setAttribute('address', buyUrl);
+    }
+
+    const buildTransferUrl = (baseUrl) => {
+        const amount = encodeURIComponent(new BigNumber(localPrice).multipliedBy(1000000000));
+        const payloadParam = payloadIn
+            ? `bin=${encodeURIComponent(payloadIn)}`
+            : `text=${encodeURIComponent(domain)}`;
+
+        return `${baseUrl}${destinationAddress}?amount=${amount}&${payloadParam}`;
     }
     
     openPaymentModal();

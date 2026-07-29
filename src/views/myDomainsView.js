@@ -20,6 +20,10 @@ class MyDomainsView {
     document.querySelectorAll('.my-domains-table-row').forEach(node => node.remove());
   }
 
+  updateSalePrices(domains) {
+    updateSalePriceCells(domains);
+  }
+
   rednder(moreDomainsToDisplay, isLoadMore) {
     if (moreDomainsToDisplay.length) {
       firstRender(moreDomainsToDisplay);
@@ -38,10 +42,11 @@ class MyDomainsView {
 // --- UTILITY REDNER METHODS ---
 const assembleRowData = (item) => {
   const domainName = item.name;
-  const salePricePromise = getSalePrice(domainName); // new Promise((r) => setTimeout(() => r(1234567), 5000))
+  const salePrice = item.sale_price;
   const expiryDate = new Date(item.expiring_at * 1000);
+  const address = item.address;
   
-  return { domainName, salePricePromise, expiryDate };
+  return { domainName, salePrice, expiryDate, address };
 }
 
 const buildDomainCell = (cell, domain) => {
@@ -54,29 +59,65 @@ const buildDomainCell = (cell, domain) => {
 }
 
 const loadingPricePlaceholder = isMobile() ? 123 : 12345;
-const buildSalePriceCell = (cell, salePricePromise) => {
-  cell.classList.add('my-domains-table-cell');
+const renderSalePrice = (priceCellDiv, salePrice) => {
+  priceCellDiv.replaceChildren();
 
-  // --- first row in the cell
-  const priceCellDiv = document.createElement('div');
-  priceCellDiv.classList.add('my-domains-cell-price-container');
+  if (salePrice === undefined) {
+    const tonLogoSpan = document.createElement('span');
+    tonLogoSpan.classList.add('my-domains-cell-price-ton-logo');
+    priceCellDiv.appendChild(tonLogoSpan);
+
+    const loadingPriceSpan = document.createElement('span');
+    loadingPriceSpan.classList.add('my-domains-cell-price-loading');
+    loadingPriceSpan.innerHTML = '&nbsp;' + formatNumber(loadingPricePlaceholder, 2);
+    priceCellDiv.appendChild(loadingPriceSpan);
+    return;
+  }
 
   const spanPriceInTON = document.createElement('span');
-  spanPriceInTON.classList.add('my-domains-cell-price-loading');
-  spanPriceInTON.innerHTML = '&nbsp;' + formatNumber(loadingPricePlaceholder, 2);
+  spanPriceInTON.classList.add('my-domains-cell-price');
   priceCellDiv.appendChild(spanPriceInTON);
 
-  const tonLogoSpan = document.createElement('span');
-  tonLogoSpan.classList.add('my-domains-cell-price-ton-logo');
-  priceCellDiv.insertBefore(tonLogoSpan, spanPriceInTON);
-  // ---
+  const hasSalePrice = salePrice !== undefined
+    && salePrice !== null
+    && salePrice !== ''
+    && Number.isFinite(Number(salePrice));
+
+  if (hasSalePrice) {
+    const tonLogoSpan = document.createElement('span');
+    tonLogoSpan.classList.add('my-domains-cell-price-ton-logo');
+    priceCellDiv.insertBefore(tonLogoSpan, spanPriceInTON);
+    spanPriceInTON.innerHTML = '&nbsp;' + formatNumber(salePrice, 2);
+  } else {
+    spanPriceInTON.innerHTML = '&mdash;';
+  }
+}
+
+const buildSalePriceCell = (cell, salePrice, address) => {
+  cell.classList.add('my-domains-table-cell');
+  cell.classList.add('my-domains-sale-price-cell');
+  cell.dataset.domainAddress = address;
+
+  const priceCellDiv = document.createElement('div');
+  priceCellDiv.classList.add('my-domains-cell-price-container');
+  renderSalePrice(priceCellDiv, salePrice);
 
   cell.appendChild(priceCellDiv);
+}
 
-  salePricePromise.then((priceInTON) => {
-    spanPriceInTON.classList.remove('my-domains-cell-price-loading');
-    spanPriceInTON.classList.add('my-domains-cell-price');
-    spanPriceInTON.innerHTML = '&nbsp;' + formatNumber(priceInTON, 2);
+const updateSalePriceCells = (domains) => {
+  const pricesByAddress = new Map(domains.map((domain) => (
+    [getToncenterAddressKey(domain.address), domain.sale_price]
+  )));
+
+  document.querySelectorAll('.my-domains-sale-price-cell').forEach((cell) => {
+    const addressKey = getToncenterAddressKey(cell.dataset.domainAddress);
+    if (!pricesByAddress.has(addressKey)) {
+      return;
+    }
+
+    const priceCellDiv = cell.querySelector('.my-domains-cell-price-container');
+    renderSalePrice(priceCellDiv, pricesByAddress.get(addressKey));
   });
 }
 
@@ -167,7 +208,7 @@ const buildArrowRight = (cell) => {
 }
 
 function renderRow(rowData) {
-  const { domainName, salePricePromise, expiryDate } = rowData;
+  const { domainName, salePrice, expiryDate, address } = rowData;
   const row = $('.my-domains-table').insertRow(-1);
   row.classList.add('my-domains-table-row');
 
@@ -180,7 +221,7 @@ function renderRow(rowData) {
   };
 
   buildDomainCell(row.insertCell(0), domainName);
-  buildSalePriceCell(row.insertCell(1), salePricePromise);
+  buildSalePriceCell(row.insertCell(1), salePrice, address);
   buildExpiryDate(row.insertCell(2), expiryDate);
   buildArrowRight(row.insertCell(3));
 }

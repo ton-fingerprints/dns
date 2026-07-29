@@ -9,6 +9,7 @@ class MyDomainsController {
   accountAddress = '';
   isInitialized = false;
   isDataLoading = false;
+  domainLoadRequestId = 0;
 
   constructor() { }
 
@@ -26,6 +27,7 @@ class MyDomainsController {
 
   destructor() {
     this.isInitialized = false;
+    this.domainLoadRequestId += 1;
 
     this.hideMyDomainsButton();
     this.setAccountAddress('');
@@ -35,29 +37,52 @@ class MyDomainsController {
   }
 
   async fetchDomains() {
+    const requestId = ++this.domainLoadRequestId;
+    let domainsToEnrich = [];
+
     try {
       this.startDataLoading();
 
-      const response = await fetch(`${TONAPI_WRAPPER_API}/expiring-domains?accountAddress=${this.accountAddress}&period=${this.expiringPeriod}`);
-
-
-      const { items, error } = await response.json();
-      if (error) {
-        throw new Error(error)
-      }
-      if (!items) {
-        throw new Error('No items property in the response')
+      const items = await fetchExpiringDomains(this.accountAddress, this.expiringPeriod, IS_TESTNET);
+      if (!this.isDomainLoadRequestActive(requestId)) {
+        return;
       }
       if (!items.length) {
         return;
       }
 
-      const domainsSortedByAscendingExpiryDate = items.reverse();
-      this.setDomains(domainsSortedByAscendingExpiryDate);
+      domainsToEnrich = items.reverse();
+      this.setDomains(domainsToEnrich);
     } catch (e) {
-      console.error(e.message);
+      if (this.isDomainLoadRequestActive(requestId)) {
+        console.error(e.message);
+      }
     } finally {
-      this.stopDataLoading();
+      if (this.isDomainLoadRequestActive(requestId)) {
+        this.stopDataLoading();
+      }
+    }
+
+    if (domainsToEnrich.length && this.isDomainLoadRequestActive(requestId)) {
+      this.enrichDomainSalePrices(domainsToEnrich, requestId);
+    }
+  }
+
+  isDomainLoadRequestActive(requestId) {
+    return this.isInitialized && requestId === this.domainLoadRequestId;
+  }
+
+  async enrichDomainSalePrices(domains, requestId) {
+    try {
+      await attachDomainSalePrices(domains, IS_TESTNET, (updatedDomains) => {
+        if (this.isDomainLoadRequestActive(requestId)) {
+          this.myDomainsView.updateSalePrices(updatedDomains);
+        }
+      });
+    } catch (e) {
+      if (this.isDomainLoadRequestActive(requestId)) {
+        console.error(e.message);
+      }
     }
   }
 
